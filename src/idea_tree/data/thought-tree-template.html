@@ -239,10 +239,12 @@
 
       function getPalette() { return isDark ? darkPalette : lightPalette; }
       let palette = getPalette();
+      const ballSprites = {};
 
       function applyTheme(dark) {
         isDark = dark;
         palette = getPalette();
+        for (const k in ballSprites) delete ballSprites[k];
         document.body.classList.toggle("light-mode", !dark);
         const btn = document.querySelector("#theme");
         if (btn) {
@@ -263,7 +265,7 @@
 
       let width = innerWidth;
       let height = innerHeight;
-      let dpr = Math.min(devicePixelRatio || 1, 2);
+      let dpr = Math.min(devicePixelRatio || 1, 1);
       let nodes = [];
       let edges = [];
       let hovered = null;
@@ -296,6 +298,8 @@
         return n;
       }
 
+      const R = 128;
+      const size = R * 2 + 42 * 2;
       const root = flatten(tree);
       document.querySelector("#tree-count").textContent = `living tree · ${nodes.length} thoughts`;
 
@@ -431,15 +435,55 @@
         }
       }
 
+      function ballSprite(key, rootFlag) {
+        const ck = key + (rootFlag ? "r" : "c");
+        if (ballSprites[ck]) return ballSprites[ck];
+        const R = 128;
+        const GLOW = 42;
+        const size = R * 2 + GLOW * 2;
+        const cx = size / 2;
+        const off = document.createElement("canvas");
+        off.width = off.height = size;
+        const octx = off.getContext("2d");
+        const glow = octx.createRadialGradient(cx, cx, R * .5, cx, cx, size / 2);
+        glow.addColorStop(0, rgba(key, isDark ? .22 : .10));
+        glow.addColorStop(.55, rgba(key, isDark ? .08 : .03));
+        glow.addColorStop(1, rgba(key, 0));
+        octx.fillStyle = glow;
+        octx.fillRect(0, 0, size, size);
+        const g = octx.createRadialGradient(cx - R * .28, cx - R * .34, R * .08, cx, cx, R);
+        if (isDark) {
+          g.addColorStop(0, rgba(key, rootFlag ? .26 : .20));
+          g.addColorStop(.68, `rgba(18, 28, 38, ${rootFlag ? .96 : .92})`);
+          g.addColorStop(1, `rgba(10, 17, 25, ${rootFlag ? .99 : .97})`);
+        } else {
+          g.addColorStop(0, "rgba(252, 250, 246, .97)");
+          g.addColorStop(1, "rgba(252, 250, 246, .97)");
+        }
+        octx.fillStyle = g;
+        octx.beginPath();
+        octx.arc(cx, cx, R, 0, Math.PI * 2);
+        octx.fill();
+        octx.strokeStyle = rgba(key, rootFlag ? .60 : .42);
+        octx.lineWidth = 2;
+        octx.stroke();
+        ballSprites[ck] = off;
+        return off;
+      }
+
+      let bgCache = null;
       function drawBackground() {
-        const { night, deep, paper } = isDark
-          ? { night: "#1b2936", deep: "#131e2a", paper: "#0d141e" }
-          : { night: "#e9e4db", deep: "#dfd9ce", paper: "#d5cec2" };
-        const gradient = ctx.createRadialGradient(width * .48, height * .46, 0, width * .5, height * .5, Math.max(width, height) * .78);
-        gradient.addColorStop(0, night);
-        gradient.addColorStop(.52, deep);
-        gradient.addColorStop(1, paper);
-        ctx.fillStyle = gradient;
+        if (!bgCache || bgCache.dark !== isDark || bgCache.w !== width || bgCache.h !== height) {
+          const { night, deep, paper } = isDark
+            ? { night: "#1b2936", deep: "#131e2a", paper: "#0d141e" }
+            : { night: "#e9e4db", deep: "#dfd9ce", paper: "#d5cec2" };
+          const g = ctx.createRadialGradient(width * .48, height * .46, 0, width * .5, height * .5, Math.max(width, height) * .78);
+          g.addColorStop(0, night);
+          g.addColorStop(.52, deep);
+          g.addColorStop(1, paper);
+          bgCache = { dark: isDark, w: width, h: height, g };
+        }
+        ctx.fillStyle = bgCache.g;
         ctx.fillRect(0, 0, width, height);
 
         const halo = worldToScreen(pointer.wx, pointer.wy);
@@ -466,13 +510,16 @@
           const c = curveControl(a, b);
           const act = !focused || (isRelated(e.a) && isRelated(e.b));
           const eAlpha = isDark ? (act ? .34 : .035) : (act ? .12 : .01);
-          const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-          gradient.addColorStop(0, rgba(e.b.colorKey, eAlpha));
-          gradient.addColorStop(1, rgba(e.b.colorKey, eAlpha * .3));
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
-          ctx.strokeStyle = gradient;
+          ctx.strokeStyle = rgba(e.b.colorKey, eAlpha * .5);
+          ctx.lineWidth = Math.max(1.6, camera.zoom * (e.b.depth === 1 ? 3 : 2.2));
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
+          ctx.strokeStyle = rgba(e.b.colorKey, eAlpha);
           ctx.lineWidth = Math.max(.7, camera.zoom * (e.b.depth === 1 ? 1.6 : 1));
           ctx.stroke();
         }
@@ -499,26 +546,13 @@
 
         ctx.save();
         ctx.globalAlpha = related ? 1 : (isDark ? .14 : .04);
-        ctx.shadowColor = rgba(n.colorKey, active ? (isDark ? .30 : .14) : (isDark ? .12 : .06));
-        ctx.shadowBlur = active ? 32 : 18;
-        const g = ctx.createRadialGradient(p.x - r * .28, p.y - r * .34, r * .08, p.x, p.y, r);
-        if (isDark) {
-          g.addColorStop(0, rgba(n.colorKey, n.depth === 0 ? .23 : .18));
-          g.addColorStop(.68, `rgba(18, 28, 38, ${n.depth === 0 ? .94 : .90})`);
-          g.addColorStop(1, `rgba(10, 17, 25, ${n.depth === 0 ? .98 : .96})`);
-        } else {
-          const fade = active ? (n.depth === 0 ? .18 : .12) : (n.depth === 0 ? .03 : .02);
-          g.addColorStop(0, rgba(n.colorKey, fade));
-          g.addColorStop(.68, `rgba(248, 245, 240, ${fade + .06})`);
-          g.addColorStop(1, `rgba(240, 236, 230, ${fade + .04})`);
-        }
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        const sprite = ballSprite(n.colorKey, n.depth === 0);
+        const sr = r * (size / (2 * R));
+        ctx.drawImage(sprite, p.x - sr, p.y - sr, sr * 2, sr * 2);
         ctx.strokeStyle = rgba(n.colorKey, isDark ? (active ? .78 : n.depth === 0 ? .50 : .34) : (active ? .6 : .30));
         ctx.lineWidth = active ? 1.5 : .8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.stroke();
 
         const dotAngle = tick * .00008 + n.phase;
@@ -550,6 +584,7 @@
         [...nodes].sort((a, b) => b.depth - a.depth).forEach(drawNode);
       }
 
+      let frameCount = 0;
       function frame(now) {
         const rawDt = Math.min(32, now - lastTime);
         lastTime = now;
@@ -557,7 +592,8 @@
         camera.x += (camera.tx - camera.x) * .085;
         camera.y += (camera.ty - camera.y) * .085;
         camera.zoom += (camera.tz - camera.zoom) * .085;
-        simulate(dt);
+        frameCount += 1;
+        if (frameCount % 2 === 0) simulate(dt * 2);
         draw();
         pointer.speed *= .90;
         requestAnimationFrame(frame);

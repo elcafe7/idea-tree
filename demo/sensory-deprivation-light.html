@@ -232,7 +232,7 @@
         gold: [160, 130, 50]
       };
 
-      let isDark = "dark" !== "light";
+      let isDark = "light" !== "light";
       const stored = localStorage.getItem("idea-tree-theme");
       const urlTheme = new URLSearchParams(location.search).get("theme");
       if (urlTheme === "light" || (!urlTheme && stored === "light") || (!stored && !urlTheme && matchMedia("(prefers-color-scheme: light)").matches)) {
