@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "idea-tree"
+version = "0.1.0"
+description = "Minimalist CLI that taxonomifies ideas into visual trees"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+  "httpx>=0.28,<1",
+  "textual>=6.6,<7",
+]
+
+[project.scripts]
+idea-tree = "idea_tree.cli:main"
+idea_tree = "idea_tree.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/idea_tree"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.11",
+]

@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__TREE_TITLE__ — idea-tree</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --night: #101721;
+      --deep: #151f2c;
+      --paper: #f4efe4;
+      --mist: #a9b2b6;
+      --line: rgba(215, 225, 220, .16);
+      --glass: rgba(18, 26, 37, .72);
+      --moss: #b8cba6;
+      --coral: #e5a691;
+      --sky: #98bed0;
+      --gold: #d8bd79;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--night);
+      color: var(--paper);
+      font-family: Avenir Next, Avenir, Futura, sans-serif;
+    }
+
+    body { user-select: none; }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    canvas.dragging { cursor: grabbing; }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .16;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.26'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+    }
+
+    .masthead {
+      position: fixed;
+      z-index: 2;
+      top: 28px;
+      left: 30px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      pointer-events: none;
+    }
+
+    .brand {
+      margin: 0;
+      font-family: Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(22px, 2.2vw, 32px);
+      letter-spacing: -.035em;
+    }
+
+    .mode {
+      color: var(--mist);
+      font: 600 10px/1 Avenir Next, sans-serif;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .hint {
+      position: fixed;
+      z-index: 2;
+      left: 31px;
+      bottom: 30px;
+      margin: 0;
+      max-width: 290px;
+      color: rgba(244, 239, 228, .52);
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: .02em;
+      pointer-events: none;
+      transition: opacity .8s ease;
+    }
+
+    .controls {
+      position: fixed;
+      z-index: 3;
+      top: 24px;
+      right: 26px;
+      display: flex;
+      gap: 6px;
+      padding: 5px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 999px;
+      background: var(--glass);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
+      backdrop-filter: blur(14px);
+    }
+
+    button {
+      appearance: none;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: rgba(244, 239, 228, .72);
+      font: 500 17px/1 Avenir Next, sans-serif;
+      cursor: pointer;
+      transition: color .18s ease, background .18s ease, transform .18s ease;
+    }
+
+    button:hover { color: var(--paper); background: rgba(255, 255, 255, .08); }
+    button:active { transform: scale(.92); }
+    button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+    button.wide { width: 56px; border-radius: 999px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+
+    .detail {
+      position: fixed;
+      z-index: 2;
+      right: 28px;
+      bottom: 27px;
+      width: min(300px, calc(100vw - 56px));
+      padding: 17px 18px 16px;
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: 16px;
+      background: rgba(18, 26, 37, .64);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, .16);
+      backdrop-filter: blur(14px);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+
+    .detail.visible { opacity: 1; transform: translateY(0); }
+    .detail-path { color: var(--mist); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .detail-name { margin: 6px 0 0; font-family: Iowan Old Style, Palatino Linotype, Georgia, serif; font-size: 20px; font-weight: 400; }
+    .detail-note { margin: 5px 0 0; color: rgba(244, 239, 228, .58); font-size: 11px; line-height: 1.45; }
+
+    @media (max-width: 640px) {
+      .masthead { top: 20px; left: 20px; display: block; }
+      .mode { display: block; margin-top: 5px; }
+      .controls { top: auto; right: 18px; bottom: 18px; left: 176px; justify-content: space-between; }
+      .hint { left: 20px; bottom: 22px; max-width: 150px; }
+      .detail { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .detail, button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="world" aria-label="Interactive floating thought tree"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <h1 class="brand">__TREE_TITLE__</h1>
+    <span class="mode" id="tree-count">living tree</span>
+  </header>
+
+  <nav class="controls" aria-label="View controls">
+    <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+    <button id="fit" class="wide" type="button" aria-label="Fit whole tree">forest</button>
+    <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+    <button id="motion" type="button" aria-label="Pause ambient motion" title="Pause ambient motion">≈</button>
+  </nav>
+
+  <p class="hint">Move through the canopy. Your pointer has gravity.<br>Drag a thought · scroll to zoom · drag space to roam.</p>
+
+  <aside class="detail" id="detail" aria-live="polite">
+    <div class="detail-path" id="detail-path"></div>
+    <h2 class="detail-name" id="detail-name"></h2>
+    <p class="detail-note">Click to bring this branch into focus. Click open space to see the whole forest.</p>
+  </aside>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const tree = __TREE_JSON__;
+
+      const palette = {
+        root: [244, 239, 228],
+        moss: [184, 203, 166],
+        sky: [152, 190, 208],
+        coral: [229, 166, 145],
+        gold: [216, 189, 121]
+      };
+
+      const canvas = document.querySelector("#world");
+      const ctx = canvas.getContext("2d");
+      const detail = document.querySelector("#detail");
+      const detailName = document.querySelector("#detail-name");
+      const detailPath = document.querySelector("#detail-path");
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let dpr = Math.min(devicePixelRatio || 1, 2);
+      let nodes = [];
+      let edges = [];
+      let hovered = null;
+      let focused = null;
+      let dragged = null;
+      let panning = false;
+      let moved = false;
+      let ambient = !reduceMotion;
+      let tick = 0;
+      let lastTime = performance.now();
+      const camera = { x: 0, y: 0, zoom: 1, tx: 0, ty: 0, tz: 1 };
+      const pointer = { x: -9999, y: -9999, wx: 0, wy: 0, px: 0, py: 0, speed: 0, downX: 0, downY: 0 };
+
+      function flatten(node, parent = null, depth = 0, branch = 0, path = []) {
+        const id = nodes.length;
+        const colorKey = depth === 0 ? "root" : (node.color || parent.colorKey);
+        const n = {
+          id, name: node.name, parent, depth, branch, colorKey,
+          path: [...path, node.name], children: [],
+          x: 0, y: 0, ax: 0, ay: 0, vx: 0, vy: 0,
+          phase: Math.random() * Math.PI * 2,
+          radius: depth === 0 ? 58 : depth === 1 ? 43 : depth === 2 ? 30 : 24
+        };
+        nodes.push(n);
+        if (parent) {
+          parent.children.push(n);
+          edges.push({ a: parent, b: n });
+        }
+        (node.children || []).forEach((child, i) => flatten(child, n, depth + 1, depth === 0 ? i : branch, n.path));
+        return n;
+      }
+
+      const root = flatten(tree);
+      document.querySelector("#tree-count").textContent = `living tree · ${nodes.length} thoughts`;
+
+      function layoutAnchors() {
+        root.ax = root.x = 0;
+        root.ay = root.y = 0;
+        const n = root.children.length;
+        root.children.forEach((branch, i) => {
+          const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+          const radius = 250;
+          branch.ax = branch.x = Math.cos(angle) * radius;
+          branch.ay = branch.y = Math.sin(angle) * radius;
+          const gc = branch.children;
+          gc.forEach((node, j) => {
+            const spread = (j - (gc.length - 1) / 2) * 0.40;
+            const a = angle + spread;
+            const reach = 210 + (j % 2) * 22;
+            node.ax = node.x = branch.ax + Math.cos(a) * reach;
+            node.ay = node.y = branch.ay + Math.sin(a) * reach * 0.72;
+            node.children.forEach((leaf, k) => {
+              const la = a + (k - (node.children.length - 1) / 2) * 0.46;
+              leaf.ax = leaf.x = node.ax + Math.cos(la) * 150;
+              leaf.ay = leaf.y = node.ay + Math.sin(la) * 110;
+            });
+          });
+        });
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        dpr = Math.min(devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+      }
+
+      function fitForest(immediate = false) {
+        camera.tx = 0;
+        camera.ty = 0;
+        camera.tz = Math.min(.92, Math.max(.28, Math.min(width / 1220, height / 820)));
+        if (immediate) Object.assign(camera, { x: camera.tx, y: camera.ty, zoom: camera.tz });
+        focused = null;
+        showDetail(null);
+      }
+
+      function worldToScreen(x, y) {
+        return { x: width / 2 + (x + camera.x) * camera.zoom, y: height / 2 + (y + camera.y) * camera.zoom };
+      }
+
+      function screenToWorld(x, y) {
+        return { x: (x - width / 2) / camera.zoom - camera.x, y: (y - height / 2) / camera.zoom - camera.y };
+      }
+
+      function rgba(key, alpha) {
+        const c = palette[key];
+        return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
+      }
+
+      function isRelated(n) {
+        if (!focused) return true;
+        if (n === focused) return true;
+        let p = n.parent;
+        while (p) { if (p === focused) return true; p = p.parent; }
+        p = focused.parent;
+        while (p) { if (p === n) return true; p = p.parent; }
+        return false;
+      }
+
+      function simulate(dt) {
+        tick += dt;
+        const pointerWorld = screenToWorld(pointer.x, pointer.y);
+        pointer.wx = pointerWorld.x;
+        pointer.wy = pointerWorld.y;
+
+        for (const n of nodes) {
+          if (n === dragged) continue;
+          const stiffness = n.depth === 0 ? .003 : .0017;
+          n.vx += (n.ax - n.x) * stiffness * dt;
+          n.vy += (n.ay - n.y) * stiffness * dt;
+
+          if (ambient) {
+            n.vx += Math.cos(tick * .00035 + n.phase) * .0013 * dt;
+            n.vy += Math.sin(tick * .00029 + n.phase * 1.7) * .0015 * dt;
+          }
+
+          const dx = n.x - pointer.wx;
+          const dy = n.y - pointer.wy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const reach = 185 / camera.zoom;
+          if (dist < reach) {
+            const influence = (1 - dist / reach) ** 2;
+            const impulse = (.006 + Math.min(pointer.speed, 30) * .0005) * influence * dt;
+            n.vx += (dx / dist) * impulse + (-dy / dist) * impulse * .26;
+            n.vy += (dy / dist) * impulse + (dx / dist) * impulse * .26;
+          }
+        }
+
+        for (const e of edges) {
+          const dx = e.b.x - e.a.x;
+          const dy = e.b.y - e.a.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const natural = e.b.depth === 1 ? 250 : e.b.depth === 2 ? 205 : 145;
+          const pull = (dist - natural) * .00045 * dt;
+          const fx = dx / dist * pull;
+          const fy = dy / dist * pull;
+          if (e.a !== dragged) { e.a.vx += fx; e.a.vy += fy; }
+          if (e.b !== dragged) { e.b.vx -= fx; e.b.vy -= fy; }
+        }
+
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i], b = nodes[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const min = a.radius + b.radius + 28;
+            if (dist < min) {
+              const push = (min - dist) * .002 * dt;
+              const fx = dx / dist * push, fy = dy / dist * push;
+              if (a !== dragged) { a.vx -= fx; a.vy -= fy; }
+              if (b !== dragged) { b.vx += fx; b.vy += fy; }
+            }
+          }
+        }
+
+        for (const n of nodes) {
+          if (n === dragged) continue;
+          n.vx *= Math.pow(.91, dt);
+          n.vy *= Math.pow(.91, dt);
+          n.x += n.vx * dt;
+          n.y += n.vy * dt;
+        }
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createRadialGradient(width * .48, height * .46, 0, width * .5, height * .5, Math.max(width, height) * .78);
+        gradient.addColorStop(0, "#1b2936");
+        gradient.addColorStop(.52, "#131e2a");
+        gradient.addColorStop(1, "#0d141e");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        const halo = worldToScreen(pointer.wx, pointer.wy);
+        const g = ctx.createRadialGradient(halo.x, halo.y, 0, halo.x, halo.y, 180);
+        g.addColorStop(0, "rgba(204, 221, 205, .055)");
+        g.addColorStop(1, "rgba(204, 221, 205, 0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(halo.x - 180, halo.y - 180, 360, 360);
+      }
+
+      function curveControl(a, b) {
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        const bend = (b.depth % 2 ? 1 : -1) * 18;
+        return { x: mx - (b.y - a.y) / 180 * bend, y: my + (b.x - a.x) / 180 * bend };
+      }
+
+      function drawEdges() {
+        ctx.lineCap = "round";
+        for (const e of edges) {
+          const a = worldToScreen(e.a.x, e.a.y);
+          const b = worldToScreen(e.b.x, e.b.y);
+          const c = curveControl(a, b);
+          const active = (!focused || (isRelated(e.a) && isRelated(e.b)));
+          const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+          gradient.addColorStop(0, rgba(e.b.colorKey, active ? .34 : .035));
+          gradient.addColorStop(1, rgba(e.b.colorKey, active ? .10 : .02));
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
+          ctx.strokeStyle = gradient;
+          ctx.lineWidth = Math.max(.7, camera.zoom * (e.b.depth === 1 ? 1.6 : 1));
+          ctx.stroke();
+        }
+      }
+
+      function wrapLabel(text, maxChars) {
+        const words = text.split(" ");
+        if (text.length <= maxChars || words.length === 1) return [text];
+        const lines = [""];
+        for (const word of words) {
+          const current = lines[lines.length - 1];
+          if ((current + " " + word).trim().length <= maxChars) lines[lines.length - 1] = (current + " " + word).trim();
+          else lines.push(word);
+        }
+        return lines.slice(0, 2);
+      }
+
+      function drawNode(n) {
+        const p = worldToScreen(n.x, n.y);
+        const related = isRelated(n);
+        const active = n === hovered || n === focused || n === dragged;
+        const r = n.radius * camera.zoom * (active ? 1.08 : 1);
+        if (p.x < -r * 2 || p.x > width + r * 2 || p.y < -r * 2 || p.y > height + r * 2) return;
+
+        ctx.save();
+        ctx.globalAlpha = related ? 1 : .14;
+        ctx.shadowColor = rgba(n.colorKey, active ? .30 : .12);
+        ctx.shadowBlur = active ? 32 : 18;
+        const g = ctx.createRadialGradient(p.x - r * .28, p.y - r * .34, r * .08, p.x, p.y, r);
+        g.addColorStop(0, rgba(n.colorKey, n.depth === 0 ? .23 : .18));
+        g.addColorStop(.68, `rgba(18, 28, 38, ${n.depth === 0 ? .94 : .90})`);
+        g.addColorStop(1, `rgba(10, 17, 25, ${n.depth === 0 ? .98 : .96})`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = rgba(n.colorKey, active ? .78 : n.depth === 0 ? .50 : .34);
+        ctx.lineWidth = active ? 1.5 : .8;
+        ctx.stroke();
+
+        const dotAngle = tick * .00008 + n.phase;
+        ctx.fillStyle = rgba(n.colorKey, active ? .9 : .58);
+        ctx.beginPath();
+        ctx.arc(p.x + Math.cos(dotAngle) * r, p.y + Math.sin(dotAngle) * r, Math.max(1.2, camera.zoom * 1.8), 0, Math.PI * 2);
+        ctx.fill();
+
+        if (camera.zoom > .46 || n.depth < 2 || active) {
+          const fontSize = Math.max(9.5, (n.depth === 0 ? 14 : n.depth === 1 ? 11.5 : 10) * Math.min(1.08, camera.zoom + .18));
+          ctx.fillStyle = `rgba(244, 239, 228, ${n.depth === 0 ? .96 : .82})`;
+          ctx.font = `${n.depth === 0 ? 500 : 450} ${fontSize}px Avenir Next, Avenir, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const lines = wrapLabel(n.name, n.depth === 0 ? 16 : 13);
+          const lineHeight = fontSize * 1.16;
+          lines.forEach((line, i) => ctx.fillText(line, p.x, p.y + (i - (lines.length - 1) / 2) * lineHeight, r * 1.55));
+        }
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        drawBackground();
+        drawEdges();
+        [...nodes].sort((a, b) => b.depth - a.depth).forEach(drawNode);
+      }
+
+      function frame(now) {
+        const rawDt = Math.min(32, now - lastTime);
+        lastTime = now;
+        const dt = rawDt / 16.667;
+        camera.x += (camera.tx - camera.x) * .085;
+        camera.y += (camera.ty - camera.y) * .085;
+        camera.zoom += (camera.tz - camera.zoom) * .085;
+        simulate(dt);
+        draw();
+        pointer.speed *= .90;
+        requestAnimationFrame(frame);
+      }
+
+      function nodeAt(x, y) {
+        let found = null;
+        let best = Infinity;
+        for (const n of nodes) {
+          const p = worldToScreen(n.x, n.y);
+          const d = Math.hypot(x - p.x, y - p.y);
+          const hit = Math.max(18, n.radius * camera.zoom + 5);
+          if (d < hit && d < best) { found = n; best = d; }
+        }
+        return found;
+      }
+
+      function showDetail(n) {
+        if (!n) { detail.classList.remove("visible"); return; }
+        detailName.textContent = n.name;
+        detailPath.textContent = n.path.slice(0, -1).join(" / ") || "root thought";
+        detail.classList.add("visible");
+      }
+
+      function focusNode(n) {
+        focused = n;
+        camera.tx = -n.x;
+        camera.ty = -n.y;
+        camera.tz = n.depth === 0 ? .9 : Math.min(1.38, Math.max(1.02, camera.zoom));
+        showDetail(n);
+      }
+
+      function zoomBy(factor, cx = width / 2, cy = height / 2) {
+        const before = screenToWorld(cx, cy);
+        camera.tz = Math.max(.26, Math.min(2.2, camera.tz * factor));
+        const nextZoom = camera.tz;
+        camera.tx = (cx - width / 2) / nextZoom - before.x;
+        camera.ty = (cy - height / 2) / nextZoom - before.y;
+      }
+
+      canvas.addEventListener("pointermove", event => {
+        const dx = event.clientX - pointer.px;
+        const dy = event.clientY - pointer.py;
+        pointer.speed = Math.hypot(dx, dy);
+        pointer.px = pointer.x = event.clientX;
+        pointer.py = pointer.y = event.clientY;
+        if (dragged) {
+          const w = screenToWorld(event.clientX, event.clientY);
+          dragged.x = w.x;
+          dragged.y = w.y;
+          dragged.vx = dx / Math.max(.4, camera.zoom) * .25;
+          dragged.vy = dy / Math.max(.4, camera.zoom) * .25;
+          moved = true;
+        } else if (panning) {
+          camera.tx += dx / camera.zoom;
+          camera.ty += dy / camera.zoom;
+          moved = true;
+        } else {
+          const next = nodeAt(event.clientX, event.clientY);
+          if (next !== hovered) { hovered = next; showDetail(hovered || focused); }
+        }
+      });
+
+      canvas.addEventListener("pointerdown", event => {
+        canvas.setPointerCapture(event.pointerId);
+        pointer.downX = event.clientX;
+        pointer.downY = event.clientY;
+        moved = false;
+        dragged = nodeAt(event.clientX, event.clientY);
+        panning = !dragged;
+        canvas.classList.add("dragging");
+      });
+
+      canvas.addEventListener("pointerup", event => {
+        canvas.releasePointerCapture(event.pointerId);
+        if (!moved) {
+          if (dragged) focusNode(dragged);
+          else fitForest();
+        }
+        dragged = null;
+        panning = false;
+        canvas.classList.remove("dragging");
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        if (!dragged && !panning) { pointer.x = pointer.y = -9999; hovered = null; showDetail(focused); }
+      });
+
+      canvas.addEventListener("wheel", event => {
+        event.preventDefault();
+        zoomBy(Math.exp(-event.deltaY * .0012), event.clientX, event.clientY);
+      }, { passive: false });
+
+      document.querySelector("#zoom-in").addEventListener("click", () => zoomBy(1.25));
+      document.querySelector("#zoom-out").addEventListener("click", () => zoomBy(.8));
+      document.querySelector("#fit").addEventListener("click", () => fitForest());
+      document.querySelector("#motion").addEventListener("click", event => {
+        ambient = !ambient;
+        event.currentTarget.textContent = ambient ? "≈" : "·";
+        event.currentTarget.title = ambient ? "Pause ambient motion" : "Resume ambient motion";
+        event.currentTarget.setAttribute("aria-label", event.currentTarget.title);
+      });
+
+      addEventListener("resize", () => { resize(); fitForest(); });
+      layoutAnchors();
+      resize();
+      fitForest(true);
+      requestAnimationFrame(frame);
+      setTimeout(() => document.querySelector(".hint").style.opacity = ".72", 4500);
+    })();
+  </script>
+</body>
+</html>
