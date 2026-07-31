@@ -62,6 +62,11 @@ Note: Ctrl+M is the same as Enter in most terminals, so mode uses Ctrl+T.
 | `IDEA_TREE_MODEL` | per-provider default |
 | `IDEA_TREE_MODE` | `moderate` |
 | `IDEA_TREE_SAVE_DIR` | `~/idea-trees` |
+| `IDEA_TREE_THEME` | `dark` (HTML export default; `light` for light) |
+
+Exported HTML has a sun/moon toggle; choice persists in `localStorage` and
+respects `?theme=light|dark` on the URL. `IDEA_TREE_THEME` sets the first-load
+default for exports.
 
 ## Philosophy
 

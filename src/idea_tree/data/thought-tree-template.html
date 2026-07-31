@@ -119,6 +119,7 @@
       box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
       backdrop-filter: blur(14px);
     }
+    .light-mode .controls { border-color: rgba(0, 0, 0, .12); }
 
     button {
       appearance: none;
@@ -132,9 +133,10 @@
       cursor: pointer;
       transition: color .18s ease, background .18s ease, transform .18s ease;
     }
+    .light-mode button { color: rgba(28, 25, 23, .78); }
 
     button:hover { color: var(--paper); background: rgba(255, 255, 255, .08); }
-    .light-mode button:hover { background: rgba(0, 0, 0, .06); }
+    .light-mode button:hover { color: #000; background: rgba(0, 0, 0, .06); }
     button:active { transform: scale(.92); }
     button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
     button.wide { width: 56px; border-radius: 999px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
@@ -155,6 +157,11 @@
       transform: translateY(8px);
       pointer-events: none;
       transition: opacity .22s ease, transform .22s ease;
+    }
+    .light-mode .detail {
+      background: rgba(244, 241, 234, .85);
+      border-color: rgba(0, 0, 0, .10);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, .10);
     }
 
     .detail.visible { opacity: 1; transform: translateY(0); }
@@ -223,9 +230,10 @@
         gold: [160, 130, 50]
       };
 
-      let isDark = true;
+      let isDark = __TREE_THEME__ !== "light";
       const stored = localStorage.getItem("idea-tree-theme");
-      if (stored === "light" || (!stored && matchMedia("(prefers-color-scheme: light)").matches)) {
+      const urlTheme = new URLSearchParams(location.search).get("theme");
+      if (urlTheme === "light" || (!urlTheme && stored === "light") || (!stored && !urlTheme && matchMedia("(prefers-color-scheme: light)").matches)) {
         isDark = false;
       }
 
@@ -509,7 +517,7 @@
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = rgba(n.colorKey, isDark ? (active ? .78 : n.depth === 0 ? .50 : .34) : (active ? .35 : .03));
+        ctx.strokeStyle = rgba(n.colorKey, isDark ? (active ? .78 : n.depth === 0 ? .50 : .34) : (active ? .6 : .30));
         ctx.lineWidth = active ? 1.5 : .8;
         ctx.stroke();
 
@@ -523,7 +531,7 @@
           const fontSize = Math.max(9.5, (n.depth === 0 ? 14 : n.depth === 1 ? 11.5 : 10) * Math.min(1.08, camera.zoom + .18));
           ctx.fillStyle = isDark
             ? `rgba(244, 239, 228, ${n.depth === 0 ? .96 : .82})`
-            : `rgba(28, 25, 23, ${active || n === focused ? .90 : .02})`;
+            : `rgba(28, 25, 23, ${n.depth === 0 ? .92 : .78})`;
           ctx.font = `${n.depth === 0 ? 500 : 450} ${fontSize}px Avenir Next, Avenir, sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";

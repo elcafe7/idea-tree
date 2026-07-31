@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -138,12 +139,16 @@ def _outline_children(children: list[Node], lines: list[str], depth: int) -> Non
             _outline_children(child.children, lines, depth + 1)
 
 
-def to_html(root: Node) -> str:
+def to_html(root: Node, theme: str | None = None) -> str:
+    raw_theme = (theme or os.environ.get("IDEA_TREE_THEME", "")).strip().lower()
+    if raw_theme not in ("dark", "light"):
+        raw_theme = "dark"
     _tmpl = Path(__file__).parent / "data" / "thought-tree-template.html"
     return (
         _tmpl.read_text(encoding="utf-8")
         .replace("__TREE_TITLE__", root.name)
         .replace("__TREE_JSON__", json.dumps(root.to_dict(), indent=2))
+        .replace("__TREE_THEME__", json.dumps(raw_theme))
     )
 
 
