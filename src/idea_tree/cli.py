@@ -7,7 +7,7 @@ import sys
 
 from . import __version__
 from .app import IdeaTreeApp
-from .brain import Brain, BrainError, DEFAULT_MODEL
+from .brain import DEFAULT_MODEL, Brain, BrainError
 from .modes import MODE_ORDER
 
 
@@ -19,7 +19,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--model",
         default=None,
-        help=f"xAI model id (default: env IDEA_TREE_MODEL or {DEFAULT_MODEL})",
+        help=(
+            "model id for the startup provider "
+            f"(default: env IDEA_TREE_MODEL or per-provider default, {DEFAULT_MODEL})"
+        ),
     )
     p.add_argument(
         "-m",

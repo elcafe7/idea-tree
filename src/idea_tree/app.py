@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import webbrowser
@@ -368,7 +367,7 @@ class IdeaTreeApp(App[None]):
             self._set_status(f"save failed: {exc}", kind="err", hold=6.0)
             return
 
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
         path = directory / f"{_slug(root.name)}-{stamp}.md"
         body = to_markdown(root)
         # Append the ASCII tree as a fenced block for the visual form
@@ -398,7 +397,7 @@ class IdeaTreeApp(App[None]):
             self._set_status(f"export failed: {exc}", kind="err", hold=6.0)
             return
 
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
         name = _slug(root.name)
         path = directory / f"{name}-{stamp}.html"
         try:

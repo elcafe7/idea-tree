@@ -417,9 +417,8 @@ def _close_truncated_json(text: str) -> str:
         elif ch == "}":
             if opens and opens[-1] == "{":
                 opens.pop()
-        elif ch == "]":
-            if opens and opens[-1] == "[":
-                opens.pop()
+        elif ch == "]" and opens and opens[-1] == "[":
+            opens.pop()
 
     # Close in reverse order
     closing = []
