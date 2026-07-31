@@ -6,7 +6,7 @@
   <title>__TREE_TITLE__ — idea-tree</title>
   <style>
     :root {
-      color-scheme: dark;
+      color-scheme: dark light;
       --night: #101721;
       --deep: #151f2c;
       --paper: #f4efe4;
@@ -17,6 +17,15 @@
       --coral: #e5a691;
       --sky: #98bed0;
       --gold: #d8bd79;
+    }
+
+    .light-mode {
+      --night: #f4f1ea;
+      --deep: #eae5dc;
+      --paper: #1c1917;
+      --mist: #6b6560;
+      --line: rgba(0, 0, 0, .10);
+      --glass: rgba(244, 241, 234, .82);
     }
 
     * { box-sizing: border-box; }
@@ -52,6 +61,7 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.26'/%3E%3C/svg%3E");
       mix-blend-mode: soft-light;
     }
+    .light-mode .grain { opacity: .06; }
 
     .masthead {
       position: fixed;
@@ -93,6 +103,7 @@
       pointer-events: none;
       transition: opacity .8s ease;
     }
+    .light-mode .hint { color: rgba(0, 0, 0, .38); }
 
     .controls {
       position: fixed;
@@ -123,6 +134,7 @@
     }
 
     button:hover { color: var(--paper); background: rgba(255, 255, 255, .08); }
+    .light-mode button:hover { background: rgba(0, 0, 0, .06); }
     button:active { transform: scale(.92); }
     button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
     button.wide { width: 56px; border-radius: 999px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
@@ -149,6 +161,7 @@
     .detail-path { color: var(--mist); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
     .detail-name { margin: 6px 0 0; font-family: Iowan Old Style, Palatino Linotype, Georgia, serif; font-size: 20px; font-weight: 400; }
     .detail-note { margin: 5px 0 0; color: rgba(244, 239, 228, .58); font-size: 11px; line-height: 1.45; }
+    .light-mode .detail-note { color: rgba(0, 0, 0, .42); }
 
     @media (max-width: 640px) {
       .masthead { top: 20px; left: 20px; display: block; }
@@ -177,6 +190,7 @@
     <button id="fit" class="wide" type="button" aria-label="Fit whole tree">forest</button>
     <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
     <button id="motion" type="button" aria-label="Pause ambient motion" title="Pause ambient motion">≈</button>
+    <button id="theme" type="button" aria-label="Switch to light mode" title="Switch to light mode">☀</button>
   </nav>
 
   <p class="hint">Move through the canopy. Your pointer has gravity.<br>Drag a thought · scroll to zoom · drag space to roam.</p>
@@ -193,13 +207,44 @@
 
       const tree = __TREE_JSON__;
 
-      const palette = {
+      // ── theme ──
+      const darkPalette = {
         root: [244, 239, 228],
         moss: [184, 203, 166],
         sky: [152, 190, 208],
         coral: [229, 166, 145],
         gold: [216, 189, 121]
       };
+      const lightPalette = {
+        root: [28, 25, 23],
+        moss: [70, 110, 60],
+        sky: [50, 90, 140],
+        coral: [170, 80, 60],
+        gold: [160, 130, 50]
+      };
+
+      let isDark = true;
+      const stored = localStorage.getItem("idea-tree-theme");
+      if (stored === "light" || (!stored && matchMedia("(prefers-color-scheme: light)").matches)) {
+        isDark = false;
+      }
+
+      function getPalette() { return isDark ? darkPalette : lightPalette; }
+      let palette = getPalette();
+
+      function applyTheme(dark) {
+        isDark = dark;
+        palette = getPalette();
+        document.body.classList.toggle("light-mode", !dark);
+        const btn = document.querySelector("#theme");
+        if (btn) {
+          btn.textContent = dark ? "☀" : "☾";
+          btn.title = dark ? "Switch to light mode" : "Switch to dark mode";
+          btn.setAttribute("aria-label", btn.title);
+        }
+        localStorage.setItem("idea-tree-theme", dark ? "dark" : "light");
+      }
+      applyTheme(isDark);
 
       const canvas = document.querySelector("#world");
       const ctx = canvas.getContext("2d");
@@ -379,17 +424,21 @@
       }
 
       function drawBackground() {
+        const { night, deep, paper } = isDark
+          ? { night: "#1b2936", deep: "#131e2a", paper: "#0d141e" }
+          : { night: "#e9e4db", deep: "#dfd9ce", paper: "#d5cec2" };
         const gradient = ctx.createRadialGradient(width * .48, height * .46, 0, width * .5, height * .5, Math.max(width, height) * .78);
-        gradient.addColorStop(0, "#1b2936");
-        gradient.addColorStop(.52, "#131e2a");
-        gradient.addColorStop(1, "#0d141e");
+        gradient.addColorStop(0, night);
+        gradient.addColorStop(.52, deep);
+        gradient.addColorStop(1, paper);
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
 
         const halo = worldToScreen(pointer.wx, pointer.wy);
+        const hc = isDark ? "204, 221, 205" : "100, 120, 100";
         const g = ctx.createRadialGradient(halo.x, halo.y, 0, halo.x, halo.y, 180);
-        g.addColorStop(0, "rgba(204, 221, 205, .055)");
-        g.addColorStop(1, "rgba(204, 221, 205, 0)");
+        g.addColorStop(0, `rgba(${hc}, ${isDark ? ".055" : ".07"})`);
+        g.addColorStop(1, `rgba(${hc}, 0)`);
         ctx.fillStyle = g;
         ctx.fillRect(halo.x - 180, halo.y - 180, 360, 360);
       }
@@ -407,10 +456,11 @@
           const a = worldToScreen(e.a.x, e.a.y);
           const b = worldToScreen(e.b.x, e.b.y);
           const c = curveControl(a, b);
-          const active = (!focused || (isRelated(e.a) && isRelated(e.b)));
+          const act = !focused || (isRelated(e.a) && isRelated(e.b));
+          const eAlpha = isDark ? (act ? .34 : .035) : (act ? .12 : .01);
           const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-          gradient.addColorStop(0, rgba(e.b.colorKey, active ? .34 : .035));
-          gradient.addColorStop(1, rgba(e.b.colorKey, active ? .10 : .02));
+          gradient.addColorStop(0, rgba(e.b.colorKey, eAlpha));
+          gradient.addColorStop(1, rgba(e.b.colorKey, eAlpha * .3));
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
@@ -440,31 +490,40 @@
         if (p.x < -r * 2 || p.x > width + r * 2 || p.y < -r * 2 || p.y > height + r * 2) return;
 
         ctx.save();
-        ctx.globalAlpha = related ? 1 : .14;
-        ctx.shadowColor = rgba(n.colorKey, active ? .30 : .12);
+        ctx.globalAlpha = related ? 1 : (isDark ? .14 : .04);
+        ctx.shadowColor = rgba(n.colorKey, active ? (isDark ? .30 : .14) : (isDark ? .12 : .06));
         ctx.shadowBlur = active ? 32 : 18;
         const g = ctx.createRadialGradient(p.x - r * .28, p.y - r * .34, r * .08, p.x, p.y, r);
-        g.addColorStop(0, rgba(n.colorKey, n.depth === 0 ? .23 : .18));
-        g.addColorStop(.68, `rgba(18, 28, 38, ${n.depth === 0 ? .94 : .90})`);
-        g.addColorStop(1, `rgba(10, 17, 25, ${n.depth === 0 ? .98 : .96})`);
+        if (isDark) {
+          g.addColorStop(0, rgba(n.colorKey, n.depth === 0 ? .23 : .18));
+          g.addColorStop(.68, `rgba(18, 28, 38, ${n.depth === 0 ? .94 : .90})`);
+          g.addColorStop(1, `rgba(10, 17, 25, ${n.depth === 0 ? .98 : .96})`);
+        } else {
+          const fade = active ? (n.depth === 0 ? .18 : .12) : (n.depth === 0 ? .03 : .02);
+          g.addColorStop(0, rgba(n.colorKey, fade));
+          g.addColorStop(.68, `rgba(248, 245, 240, ${fade + .06})`);
+          g.addColorStop(1, `rgba(240, 236, 230, ${fade + .04})`);
+        }
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = rgba(n.colorKey, active ? .78 : n.depth === 0 ? .50 : .34);
+        ctx.strokeStyle = rgba(n.colorKey, isDark ? (active ? .78 : n.depth === 0 ? .50 : .34) : (active ? .35 : .03));
         ctx.lineWidth = active ? 1.5 : .8;
         ctx.stroke();
 
         const dotAngle = tick * .00008 + n.phase;
-        ctx.fillStyle = rgba(n.colorKey, active ? .9 : .58);
+        ctx.fillStyle = rgba(n.colorKey, isDark ? (active ? .9 : .58) : (active ? .6 : .04));
         ctx.beginPath();
         ctx.arc(p.x + Math.cos(dotAngle) * r, p.y + Math.sin(dotAngle) * r, Math.max(1.2, camera.zoom * 1.8), 0, Math.PI * 2);
         ctx.fill();
 
         if (camera.zoom > .46 || n.depth < 2 || active) {
           const fontSize = Math.max(9.5, (n.depth === 0 ? 14 : n.depth === 1 ? 11.5 : 10) * Math.min(1.08, camera.zoom + .18));
-          ctx.fillStyle = `rgba(244, 239, 228, ${n.depth === 0 ? .96 : .82})`;
+          ctx.fillStyle = isDark
+            ? `rgba(244, 239, 228, ${n.depth === 0 ? .96 : .82})`
+            : `rgba(28, 25, 23, ${active || n === focused ? .90 : .02})`;
           ctx.font = `${n.depth === 0 ? 500 : 450} ${fontSize}px Avenir Next, Avenir, sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -593,6 +652,7 @@
         event.currentTarget.title = ambient ? "Pause ambient motion" : "Resume ambient motion";
         event.currentTarget.setAttribute("aria-label", event.currentTarget.title);
       });
+      document.querySelector("#theme").addEventListener("click", () => applyTheme(!isDark));
 
       addEventListener("resize", () => { resize(); fitForest(); });
       layoutAnchors();
