@@ -14,12 +14,14 @@ pip install -e .
 # or: uv pip install -e .
 ```
 
-Needs an xAI API key:
+Needs at least one API key:
 
 ```bash
-export XAI_API_KEY=xai-...
-# or: source ~/.grok/api.env
+export XAI_API_KEY=xai-...          # xAI (default)
+export IDEA_TREE_OPENAI_KEY=sk-...  # OpenAI (switch with Ctrl+P)
 ```
+
+Toggle between available providers with **Ctrl+P**. The app auto-detects which keys are available and skips providers with missing or mismatched keys.
 
 ## Run
 
@@ -34,7 +36,9 @@ idea-tree --model grok-4.5
 |-----|--------|
 | Enter | Send / expand |
 | **Ctrl+T** | Cycle mode: moderate → exhaustive → common parlance |
+| **Ctrl+P** | Cycle provider: xAI ↔ OpenAI |
 | Ctrl+S | Save current tree as Markdown |
+| Ctrl+E | Export tree as interactive HTML (opens in browser) |
 | Ctrl+L | Clear history + tree |
 | Esc / Ctrl+C | Quit |
 
@@ -53,9 +57,9 @@ Note: Ctrl+M is the same as Enter in most terminals, so mode uses Ctrl+T.
 
 | Variable | Default |
 |----------|---------|
-| `XAI_API_KEY` | (required) |
-| `IDEA_TREE_MODEL` | `grok-4.5` |
-| `IDEA_TREE_BASE_URL` | `https://api.x.ai/v1` |
+| `XAI_API_KEY` | (required for xAI) |
+| `IDEA_TREE_OPENAI_KEY` | (required for OpenAI) |
+| `IDEA_TREE_MODEL` | per-provider default |
 | `IDEA_TREE_MODE` | `moderate` |
 | `IDEA_TREE_SAVE_DIR` | `~/idea-trees` |
 
